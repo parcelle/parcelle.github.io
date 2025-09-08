@@ -10,10 +10,10 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
 
-  <!-- Turf for geodesic calculations -->
+  <!-- Turf -->
   <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js" crossorigin="anonymous"></script>
 
-  <!-- PapaParse for streaming CSV -->
+  <!-- PapaParse -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js" crossorigin="anonymous"></script>
 
   <!-- Fonts -->
@@ -31,77 +31,68 @@
       --border:rgba(30,22,18,0.12);
       --panel-bg:#ffffff;
       --panel-elev:0 4px 12px rgba(0,0,0,.08);
+      --square-color:#1b271a;
     }
     html,body,#app{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:Inter,sans-serif;}
     #map{position:absolute;inset:0;z-index:1;}
     .hud{position:absolute;inset:0;pointer-events:none;}
 
-    /* Top bar (kept subtle) */
-    .topbar{position:absolute;top:16px;left:50%;transform:translateX(-50%);display:flex;gap:10px;align-items:center;
-      background:var(--panel-bg);border:1px solid var(--border);border-radius:14px;padding:8px 12px;box-shadow:var(--panel-elev);
-      pointer-events:auto}
-    .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:0.2px}
-    .brand .logo{width:22px;height:22px;border-radius:6px;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:800}
-    .brand small{color:var(--muted);font-weight:600}
-
-    /* Control panel — flat, minimal */
-    .panel{position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;gap:10px;min-width:260px;
-      background:var(--panel-bg);border:1px solid var(--border);border-radius:14px;padding:12px;box-shadow:var(--panel-elev);
-      pointer-events:auto}
-    .row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
-    .hint{color:var(--muted);font-size:12px}
-
-    .btn{appearance:none;border:1px solid var(--border);border-radius:12px;padding:10px 14px;font-weight:600;cursor:pointer;
-      transition:background .15s ease, transform .08s ease, border-color .15s ease;display:inline-flex;align-items:center;gap:8px;background:#fff}
+    /* Minimal control panel — aligned & flush */
+    .panel{
+      position:absolute;right:16px;bottom:16px;
+      display:flex;flex-direction:column;gap:10px;min-width:260px;
+      background:var(--panel-bg);border:1px solid var(--border);border-radius:14px;
+      padding:12px;box-shadow:var(--panel-elev);pointer-events:auto;
+      box-sizing:border-box;
+    }
+    .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-start;width:100%}
+    .btn{
+      appearance:none;border:1px solid var(--border);border-radius:12px;
+      padding:10px 14px;font-weight:600;cursor:pointer;
+      transition:background .15s ease, transform .08s ease, border-color .15s ease;
+      display:inline-flex;align-items:center;gap:8px;background:#fff;
+    }
     .btn:hover{background:#f6f6f6}
     .btn:active{transform:translateY(1px)}
     .primary{background:var(--accent);border-color:var(--accent);color:#fff}
     .primary:hover{background:#162114}
     .ghost{background:transparent}
-    .danger{background:var(--danger);border-color:var(--danger);color:#fff}
 
-    input[type=file]{display:none}
-    .file-label{border:1px dashed var(--border);border-radius:10px;padding:8px 10px;font-size:13px;color:var(--muted);cursor:pointer}
+    /* Small, subtle status in top-right */
+    .status-corner{
+      position:absolute;top:10px;right:12px;pointer-events:none;
+      font-size:12px;font-weight:600;color:var(--fg);opacity:.35;letter-spacing:.2px;
+      user-select:none;
+    }
 
-    .badge{border:1px solid var(--border);border-radius:999px;padding:4px 8px;font-size:11px;color:var(--muted)}
+    /* Tooltip removed; using text label instead */
+    .pop-label{
+      font-weight:700;font-size:14px;line-height:1;
+      color:var(--square-color);
+      text-shadow:none;
+      white-space:nowrap;
+      pointer-events:none;
+    }
 
-    /* Status pill — simple */
-    .pill{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-size:12px}
-    .dot{width:8px;height:8px;border-radius:999px;background:conic-gradient(from 0deg, var(--accent), var(--accent-2))}
-
-    /* Tooltip */
-    .tooltip {background: #fff; color: var(--fg); border:1px solid var(--border); padding:6px 8px; border-radius: 8px; box-shadow:var(--panel-elev);}
-
-    /* Bottom left helper (hidden in this version) */
-    .helper{display:none}
-
-    a, a:visited{color:#0b5e49}
-
-    /* HUD above map */
-    .hud, .panel { z-index: 10000; }
-
-    /* Pastel / gray map filters (kept, but base pane not used) */
-    .base-pane { will-change: filter; transition: filter .35s ease; }
-    .base-pane.original { filter: none; }
-    .base-pane.pastel { filter: saturate(0.8) sepia(0.12) hue-rotate(315deg) brightness(1.08) contrast(0.95); }
-    .base-pane.gray { filter: saturate(0.25) brightness(1.08) contrast(0.9); }
-
-    /* Mask pane ensures the dimming is above tiles but below HUD */
+    /* Mask pane above tiles, below HUD */
     .leaflet-pane.mask-pane { z-index: 600; pointer-events:none; }
+
+    /* Grid look */
+    .leaflet-tile{image-rendering:auto}
   </style>
 </head>
 <body>
   <div id="app">
     <div id="map" aria-label="Map of metropolitan France"></div>
 
+    <!-- Subtle status in the corner -->
+    <div id="statusCorner" class="status-corner" aria-hidden="true">OK</div>
+
     <div class="hud" aria-hidden="true">
       <div class="panel" id="panel">
-        <div class="row" style="justify-content:flex-start; gap:10px;">
-          <button id="pickBtn" class="btn primary">Pick a random place</button>
-          <button id="resetBtn" class="btn ghost">↺ Reset</button>
-        </div>
         <div class="row">
-          <div class="pill" id="statusPill" title="Status"><div class="dot"></div><span id="statusText">Idle</span></div>
+          <button id="pickBtn" class="btn primary">Pick a random place</button>
+          <button id="resetBtn" class="btn ghost">Reset</button>
         </div>
       </div>
     </div>
@@ -109,22 +100,21 @@
 
 <script>
 // --- Constants & helpers ----------------------------------------------------
-const FR_BOUNDS = L.latLngBounds([ [41.0,-5.8], [51.7,9.9] ]); // Metropole + Corsica
+const FR_BOUNDS = L.latLngBounds([ [41.0,-5.8], [51.7,9.9] ]);
 const START_VIEW = [46.7, 2.5];
-const START_ZOOM = 5.3; // shows all of France nicely
+const START_ZOOM = 5.3;
 const csvUrl = 'data/france_1km_pop_centroids.csv';
 
-// User-facing status
+// Subtle status in the corner
 function setStatus(msg){
-  const el = document.getElementById('statusText');
+  const el = document.getElementById('statusCorner');
   if(el) el.textContent = msg;
 }
 
-// Weighted reservoir sampling (Efraimidis-Spirakis)
+// Weighted reservoir sampling
 class WeightedSampler {
-  constructor(){ this.bestKey = -Infinity; this.bestItem = null; this.total = 0; this.pos = 0; }
+  constructor(){ this.bestKey = -Infinity; this.bestItem = null; }
   consider(item, weight){
-    this.total++;
     if(!(weight>0)) return;
     const u = Math.random();
     const key = Math.pow(u, 1/weight);
@@ -132,16 +122,16 @@ class WeightedSampler {
   }
 }
 
-// Build a 1km square polygon centered at [lon,lat], aligned to cardinal directions.
+// 1 km square centered on [lon,lat]
 function buildSquarePolygon(lon, lat){
   const center = [lon, lat];
-  const d = Math.SQRT1_2; // km; ~0.7071 km from center to corner
+  const d = Math.SQRT1_2; // ~0.7071 km
   const bearings = [45,135,225,315,45];
   const coords = bearings.map(b => turf.destination(center, d, b, {units:'kilometers'}).geometry.coordinates);
   return turf.polygon([coords]);
 }
 
-// Leaflet layer that draws a dynamic ~1km grid in screen space (visual only).
+// Screen-space grid
 const GridLayer = L.GridLayer.extend({
   createTile: function(coords){
     const tile = L.DomUtil.create('canvas', 'leaflet-tile');
@@ -158,57 +148,45 @@ const GridLayer = L.GridLayer.extend({
     const se = map.unproject(sePoint, zoom);
     const lat = (nw.lat + se.lat)/2;
 
-    const metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI/180) / Math.pow(2, zoom);
-
-    // keep lines ~>=16px apart so they are visible at any zoom
+    const mpp = 156543.03392 * Math.cos(lat * Math.PI/180) / Math.pow(2, zoom);
     let stepKm = 1;
-    let pxStep = (stepKm * 1000) / metersPerPixel;
-    while (pxStep < 16) { stepKm *= 2; pxStep = (stepKm * 1000) / metersPerPixel; if (stepKm > 128) break; }
+    let pxStep = (stepKm * 1000) / mpp;
+    while (pxStep < 16) { stepKm *= 2; pxStep = (stepKm * 1000) / mpp; if (stepKm > 128) break; }
 
     const startX = (pxStep - (nwPoint.x % pxStep)) % pxStep;
     const startY = (pxStep - (nwPoint.y % pxStep)) % pxStep;
 
     ctx.strokeStyle = 'rgba(0,0,0,0.10)';
     ctx.lineWidth = 1;
-
-    for(let x = startX; x <= size.x; x += pxStep){
-      ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, size.y); ctx.stroke();
-    }
-    for(let y = startY; y <= size.y; y += pxStep){
-      ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(size.x, y + 0.5); ctx.stroke();
-    }
+    for(let x = startX; x <= size.x; x += pxStep){ ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, size.y); ctx.stroke(); }
+    for(let y = startY; y <= size.y; y += pxStep){ ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(size.x, y + .5); ctx.stroke(); }
     return tile;
   }
 });
 
-// Minimal demo dataset if CSV missing
+// Demo data if CSV missing
 const SAMPLE = [
-  { lon: 2.3522, lat: 48.8566, pop: 2140000 },   // Paris
-  { lon: 5.3698, lat: 43.2965, pop: 870000  },   // Marseille
-  { lon: 4.8357, lat: 45.7640, pop: 515000  },   // Lyon
-  { lon: -1.5536, lat: 47.2184, pop: 314000 },   // Nantes
-  { lon: 7.2619, lat: 43.7102, pop: 342000  },   // Nice
+  { lon: 2.3522, lat: 48.8566, pop: 2140000 },
+  { lon: 5.3698, lat: 43.2965, pop: 870000  },
+  { lon: 4.8357, lat: 45.7640, pop: 515000  },
+  { lon: -1.5536, lat: 47.2184, pop: 314000 },
+  { lon: 7.2619, lat: 43.7102, pop: 342000  },
 ];
 
 // --- App state --------------------------------------------------------------
 let map, base, gridLayer;
 let usingSample = false;
 
-// Layers for selection/mask
-let maskPaneName = 'mask-pane';
+// Layers for selection/mask/label
+const maskPaneName = 'mask-pane';
 let maskLayer = null;
-let squareBorderLayer = null;
 let squareDashLayer = null;
-let infoMarker = null;
+let squareBorderLayer = null;
+let popLabelMarker = null;
 
 function initMap(){
-  map = L.map('map', {
-    zoomControl: false,
-    attributionControl: true,
-    minZoom: 4,
-    maxZoom: 18,
-    preferCanvas: true
-  }).setView(START_VIEW, START_ZOOM);
+  map = L.map('map', { zoomControl: false, attributionControl: true, minZoom: 4, maxZoom: 18, preferCanvas: true })
+          .setView(START_VIEW, START_ZOOM);
 
   L.control.zoom({position:'bottomleft'}).addTo(map);
 
@@ -216,26 +194,22 @@ function initMap(){
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> contributors'
   }).addTo(map);
 
-  // Grid overlay
-  gridLayer = new GridLayer();
-  gridLayer.addTo(map);
+  gridLayer = new GridLayer().addTo(map);
 
-  // Create a dedicated pane to keep mask above tiles but below HUD
   map.createPane(maskPaneName);
   const pane = map.getPane(maskPaneName);
   if(pane){ pane.classList.add('mask-pane'); }
 
-  // Fit to France on first load
   map.fitBounds(FR_BOUNDS, { paddingTopLeft:[20,60], paddingBottomRight:[20,120]});
+
+  setStatus('OK');
 }
 
-// CSV header/number coercion helpers
+// Parsing helpers
 function parseNumber(v){
   if (typeof v === 'number') return v;
   if (typeof v === 'string'){
-    // tolerate decimal commas
-    const s = v.trim().replace(',', '.');
-    const n = Number(s);
+    const n = Number(v.trim().replace(',', '.'));
     return Number.isFinite(n) ? n : NaN;
   }
   return NaN;
@@ -248,36 +222,31 @@ function getField(obj, names){
   return undefined;
 }
 
-// Main: pick a random square weighted by ln(1 + pop)
 function pickRandomSquare(){
   clearSelection();
-  setStatus('Sampling...');
+  setStatus('Sampling…');
 
   const sampler = new WeightedSampler();
   let processed = 0;
-
-  // Watchdog: if nothing completes for 20s, fall back to demo data once
   let fellBack = false;
+
   const watchdog = setTimeout(() => {
     if(!fellBack){
       fellBack = true;
-      console.warn('CSV sampling watchdog triggered — falling back to sample data');
+      console.warn('CSV sampling watchdog — using sample data');
       usingSample = true;
       finishSampling();
     }
   }, 20000);
 
   function considerRow(r){
-    // Flexible headers: lon|lng|x, lat|y, pop|population|count
     const lonRaw = getField(r, ['lon','lng','long','longitude','x']);
     const latRaw = getField(r, ['lat','latitude','y']);
     const popRaw = getField(r, ['pop','population','count','n','p']);
     const lon = parseNumber(lonRaw);
     const lat = parseNumber(latRaw);
     const pop = parseNumber(popRaw);
-
     if(Number.isFinite(lon) && Number.isFinite(lat) && Number.isFinite(pop)){
-      // Optional quick bounds check to ignore far-away rows
       if (lat >= 39 && lat <= 53.5 && lon >= -7.5 && lon <= 12){
         const w = Math.log(1 + Math.max(0, pop));
         sampler.consider({lon,lat,pop}, w);
@@ -285,23 +254,20 @@ function pickRandomSquare(){
     }
   }
 
+  function onComplete(){
+    if(!sampler.bestItem){ setStatus('No square found'); return; }
+    const { lon, lat, pop } = sampler.bestItem;
+    animateSelection(lon, lat, pop);
+  }
+
   function finishSampling(){
     clearTimeout(watchdog);
     if(usingSample){
       SAMPLE.forEach(considerRow);
       onComplete();
-      return;
+    }else{
+      onComplete();
     }
-    onComplete();
-  }
-
-  function onComplete(){
-    if(!sampler.bestItem){
-      setStatus('No eligible squares found');
-      return;
-    }
-    const { lon, lat, pop } = sampler.bestItem;
-    animateSelection(lon, lat, pop);
   }
 
   if(usingSample){
@@ -309,25 +275,22 @@ function pickRandomSquare(){
     return;
   }
 
-  // Stream the CSV with auto delimiter detection and robust typing
   Papa.parse(csvUrl, {
     download: true,
     header: true,
-    dynamicTyping: false,          // we handle decimals/commas ourselves
+    dynamicTyping: false,
     skipEmptyLines: 'greedy',
-    delimiter: "",                 // auto-detect (handles ',' or ';')
-    worker: false,                 // safer on some static hosts
+    delimiter: "",
+    worker: false,
     step: function(row){
       processed++;
       considerRow(row.data);
-      if(processed % 50000 === 0){ setStatus(`Sampling… ${processed.toLocaleString('en')} rows`); }
+      if(processed % 50000 === 0){ setStatus(`Sampling… ${processed.toLocaleString('en')}`); }
     },
-    complete: function(){
-      finishSampling();
-    },
+    complete: function(){ finishSampling(); },
     error: function(err){
       console.error(err);
-      setStatus('CSV error — using demo data');
+      setStatus('Using demo data');
       usingSample = true;
       finishSampling();
     }
@@ -338,84 +301,62 @@ function clearSelection(){
   if(maskLayer){ map.removeLayer(maskLayer); maskLayer = null; }
   if(squareDashLayer){ map.removeLayer(squareDashLayer); squareDashLayer = null; }
   if(squareBorderLayer){ map.removeLayer(squareBorderLayer); squareBorderLayer = null; }
-  if(infoMarker){ map.removeLayer(infoMarker); infoMarker = null; }
+  if(popLabelMarker){ map.removeLayer(popLabelMarker); popLabelMarker = null; }
 }
 
 function animateSelection(lon, lat, pop){
-  setStatus('Selected. Animating…');
+  setStatus('Selected');
   const dest = L.latLng(lat, lon);
   map.flyTo(dest, 8.5, { duration: 1.0 });
 
   setTimeout(() => {
-    // Build square polygon (GeoJSON lon/lat)
+    // Build square polygon
     const squarePoly = buildSquarePolygon(lon, lat);
     const squareCoords = squarePoly.geometry.coordinates[0]; // [ [lon,lat], ... ]
     const squareLatLngs = squareCoords.map(([x,y]) => L.latLng(y, x));
 
-    // 1) Create a mask: big outer ring with a hole = the square (keeps square blank)
-    const outer = [
-      L.latLng(85, -179.9),
-      L.latLng(85, 179.9),
-      L.latLng(-85, 179.9),
-      L.latLng(-85, -179.9)
-    ];
+    // Mask outside area
+    const outer = [ L.latLng(85, -179.9), L.latLng(85, 179.9), L.latLng(-85, 179.9), L.latLng(-85, -179.9) ];
     maskLayer = L.polygon([outer, squareLatLngs], {
-      pane: maskPaneName,
-      stroke: false,
-      fill: true,
-      fillColor: '#000000',
-      fillOpacity: 0.45
+      pane: maskPaneName, stroke: false, fill: true, fillColor: '#000000', fillOpacity: 0.45
     }).addTo(map);
 
-    // 2) Dashed outline around the square (visual hint on the cutout)
+    // Dashed outline
     squareDashLayer = L.polygon(squareLatLngs, {
-      pane: maskPaneName,
-      color: '#ffffff',
-      weight: 2,
-      opacity: 0.9,
-      dashArray: '8 6',
-      fill: false
+      pane: maskPaneName, color: '#ffffff', weight: 2, opacity: 0.9, dashArray: '8 6', fill: false
     }).addTo(map);
 
-    // 3) Crisp solid border around the square
+    // Solid border (this defines the brand color for the label)
     squareBorderLayer = L.polygon(squareLatLngs, {
-      pane: maskPaneName,
-      color: '#1b271a',
-      weight: 2,
-      opacity: 1,
-      fill: false
+      pane: maskPaneName, color: getComputedStyle(document.documentElement).getPropertyValue('--square-color').trim() || '#1b271a',
+      weight: 2, opacity: 1, fill: false
     }).addTo(map);
 
-    // Zoom to the square bounds
+    // Zoom to bounds
     const b = L.polygon(squareLatLngs).getBounds();
     map.flyToBounds(b, { padding: [40, 40], duration: 1.2 });
 
-    // 4) Info marker inside (above mask, below HUD)
-    const html = `<div class="tooltip"><strong>Selected square</strong><br/>Center: ${lat.toFixed(5)}, ${lon.toFixed(5)}<br/>Pop: ${Math.round(pop).toLocaleString('en')}</div>`;
-    infoMarker = L.marker([lat, lon], {
-      icon: L.divIcon({ html, className: '', iconSize: [220, 54], iconAnchor: [110, 60] })
+    // ---- Clean population label at bottom-left of square ----
+    // pick bottom-left vertex (min lat+lng) and inset slightly NE to sit inside the square
+    const bl = squareLatLngs.reduce((a,b)=> (b.lat + b.lng < a.lat + a.lng ? b : a));
+    const inset = turf.destination([bl.lng, bl.lat], 0.12, 45, {units:'kilometers'}).geometry.coordinates; // ~120m inward
+    const labelHtml = `<div class="pop-label">${Math.round(pop).toLocaleString('en')}</div>`;
+    popLabelMarker = L.marker([inset[1], inset[0]], {
+      icon: L.divIcon({ html: labelHtml, className: '', iconSize: [1,1], iconAnchor: [0,0] })
     }).addTo(map);
 
-    setStatus('Done');
+    setStatus('OK');
   }, 700);
 }
 
-// UI wiring
+// UI
 window.addEventListener('DOMContentLoaded', () => {
   initMap();
-
-  // Don’t prematurely claim the dataset is ready — some hosts block HEAD.
-  setStatus('Ready');
-
-  document.getElementById('pickBtn').addEventListener('click', () => {
-    usingSample = false; // always try the real CSV first on each click
-    pickRandomSquare();
-  });
-
+  document.getElementById('pickBtn').addEventListener('click', () => { usingSample = false; pickRandomSquare(); });
   document.getElementById('resetBtn').addEventListener('click', () => {
     clearSelection();
     map.flyToBounds(FR_BOUNDS, { paddingTopLeft:[20,60], paddingBottomRight:[20,120], duration:1.0 });
-    setStatus('Idle');
+    setStatus('OK');
   });
 });
 </script>
