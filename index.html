@@ -35,7 +35,8 @@
     }
     html,body,#app{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:Inter,sans-serif;}
     #map{position:absolute;inset:0;z-index:1;}
-    .hud{position:absolute;inset:0;pointer-events:none;}
+    .hud{position:absolute;inset:0;pointer-events:none;z-index:1000;}   /* back on top */
+    .panel{z-index:1001;}                                              /* ensure above hud */
 
     /* Minimal control panel — aligned & flush */
     .panel{
@@ -58,26 +59,23 @@
     .primary:hover{background:#162114}
     .ghost{background:transparent}
 
-    /* Small, subtle status in top-right */
+    /* Subtle status in top-right (above map & panel) */
     .status-corner{
       position:absolute;top:10px;right:12px;pointer-events:none;
       font-size:12px;font-weight:600;color:var(--fg);opacity:.35;letter-spacing:.2px;
-      user-select:none;
+      user-select:none;z-index:1100;
     }
 
-    /* Tooltip removed; using text label instead */
+    /* Population label */
     .pop-label{
-      font-weight:700;font-size:14px;line-height:1;
-      color:var(--square-color);
-      text-shadow:none;
-      white-space:nowrap;
-      pointer-events:none;
+      font-weight:700;font-size:14px;line-height:1;color:var(--square-color);
+      text-shadow:none;white-space:nowrap;pointer-events:none;
     }
 
-    /* Mask pane above tiles, below HUD */
-    .leaflet-pane.mask-pane { z-index: 600; pointer-events:none; }
+    /* Mask pane above tiles, below markers/HUD (keep label above mask) */
+    .leaflet-pane.mask-pane { z-index:500; pointer-events:none; }
 
-    /* Grid look */
+    /* Nice rendering */
     .leaflet-tile{image-rendering:auto}
   </style>
 </head>
@@ -99,13 +97,11 @@
   </div>
 
 <script>
-// --- Constants & helpers ----------------------------------------------------
 const FR_BOUNDS = L.latLngBounds([ [41.0,-5.8], [51.7,9.9] ]);
 const START_VIEW = [46.7, 2.5];
 const START_ZOOM = 5.3;
 const csvUrl = 'data/france_1km_pop_centroids.csv';
 
-// Subtle status in the corner
 function setStatus(msg){
   const el = document.getElementById('statusCorner');
   if(el) el.textContent = msg;
@@ -131,39 +127,6 @@ function buildSquarePolygon(lon, lat){
   return turf.polygon([coords]);
 }
 
-// Screen-space grid
-const GridLayer = L.GridLayer.extend({
-  createTile: function(coords){
-    const tile = L.DomUtil.create('canvas', 'leaflet-tile');
-    const size = this.getTileSize();
-    tile.width = size.x; tile.height = size.y;
-    const ctx = tile.getContext('2d');
-
-    const map = this._map;
-    const zoom = this._tileZoom;
-
-    const nwPoint = coords.multiplyBy(size.x);
-    const sePoint = nwPoint.add([size.x, size.y]);
-    const nw = map.unproject(nwPoint, zoom);
-    const se = map.unproject(sePoint, zoom);
-    const lat = (nw.lat + se.lat)/2;
-
-    const mpp = 156543.03392 * Math.cos(lat * Math.PI/180) / Math.pow(2, zoom);
-    let stepKm = 1;
-    let pxStep = (stepKm * 1000) / mpp;
-    while (pxStep < 16) { stepKm *= 2; pxStep = (stepKm * 1000) / mpp; if (stepKm > 128) break; }
-
-    const startX = (pxStep - (nwPoint.x % pxStep)) % pxStep;
-    const startY = (pxStep - (nwPoint.y % pxStep)) % pxStep;
-
-    ctx.strokeStyle = 'rgba(0,0,0,0.10)';
-    ctx.lineWidth = 1;
-    for(let x = startX; x <= size.x; x += pxStep){ ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, size.y); ctx.stroke(); }
-    for(let y = startY; y <= size.y; y += pxStep){ ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(size.x, y + .5); ctx.stroke(); }
-    return tile;
-  }
-});
-
 // Demo data if CSV missing
 const SAMPLE = [
   { lon: 2.3522, lat: 48.8566, pop: 2140000 },
@@ -173,8 +136,7 @@ const SAMPLE = [
   { lon: 7.2619, lat: 43.7102, pop: 342000  },
 ];
 
-// --- App state --------------------------------------------------------------
-let map, base, gridLayer;
+let map, base;
 let usingSample = false;
 
 // Layers for selection/mask/label
@@ -194,14 +156,12 @@ function initMap(){
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> contributors'
   }).addTo(map);
 
-  gridLayer = new GridLayer().addTo(map);
-
+  // pane for mask
   map.createPane(maskPaneName);
   const pane = map.getPane(maskPaneName);
   if(pane){ pane.classList.add('mask-pane'); }
 
   map.fitBounds(FR_BOUNDS, { paddingTopLeft:[20,60], paddingBottomRight:[20,120]});
-
   setStatus('OK');
 }
 
@@ -326,21 +286,20 @@ function animateSelection(lon, lat, pop){
       pane: maskPaneName, color: '#ffffff', weight: 2, opacity: 0.9, dashArray: '8 6', fill: false
     }).addTo(map);
 
-    // Solid border (this defines the brand color for the label)
+    // Solid border (brand color, also used by label)
+    const borderColor = getComputedStyle(document.documentElement).getPropertyValue('--square-color').trim() || '#1b271a';
     squareBorderLayer = L.polygon(squareLatLngs, {
-      pane: maskPaneName, color: getComputedStyle(document.documentElement).getPropertyValue('--square-color').trim() || '#1b271a',
-      weight: 2, opacity: 1, fill: false
+      pane: maskPaneName, color: borderColor, weight: 2, opacity: 1, fill: false
     }).addTo(map);
 
     // Zoom to bounds
     const b = L.polygon(squareLatLngs).getBounds();
     map.flyToBounds(b, { padding: [40, 40], duration: 1.2 });
 
-    // ---- Clean population label at bottom-left of square ----
-    // pick bottom-left vertex (min lat+lng) and inset slightly NE to sit inside the square
+    // Population label at bottom-left (slightly inset)
     const bl = squareLatLngs.reduce((a,b)=> (b.lat + b.lng < a.lat + a.lng ? b : a));
     const inset = turf.destination([bl.lng, bl.lat], 0.12, 45, {units:'kilometers'}).geometry.coordinates; // ~120m inward
-    const labelHtml = `<div class="pop-label">${Math.round(pop).toLocaleString('en')}</div>`;
+    const labelHtml = `<div class="pop-label" style="color:${borderColor}">${Math.round(pop).toLocaleString('en')}</div>`;
     popLabelMarker = L.marker([inset[1], inset[0]], {
       icon: L.divIcon({ html: labelHtml, className: '', iconSize: [1,1], iconAnchor: [0,0] })
     }).addTo(map);
