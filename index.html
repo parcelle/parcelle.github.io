@@ -40,14 +40,38 @@
 
     /* Control panel — raised further from bottom (16px → 32px) */
     .panel{
-      position:absolute;right:16px;bottom:32px;
-      display:flex;flex-direction:column;gap:10px;min-width:260px;
-      background:var(--panel-bg);border:1px solid var(--border);border-radius:14px;
-      padding:12px;box-shadow:var(--panel-elev);pointer-events:auto;
+      position:absolute; right:16px; bottom:32px;     /* keep your offsets */
+      display:flex; flex-direction:column; gap:10px;
+      /* ✨ shrink-wrap: width equals content width */
+      width: max-content;
+      /* cross-browser fallbacks */
+      width: -moz-fit-content;
+      width: fit-content;
+    
+      /* don’t force a minimum width */
+      min-width: 0;
+    
+      /* never exceed the viewport (16px right margin + 16px left safety) */
+      max-width: calc(100vw - 32px);
+    
+      background:var(--panel-bg);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:12px;
+      box-shadow:var(--panel-elev);
+      pointer-events:auto;
       box-sizing:border-box;
+      z-index:1001;
     }
-    .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-start;width:100%}
-
+    .row{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;              /* lets buttons wrap on very small screens */
+      justify-content:flex-start;
+      /* key: let the row size to its content */
+      width:auto;
+    }
     /* Buttons use Lato */
     .btn{
       appearance:none;border:1px solid var(--border);border-radius:12px;
@@ -55,6 +79,7 @@
       font-weight:600;cursor:pointer;
       transition:background .15s ease, transform .08s ease, border-color .15s ease;
       display:inline-flex;align-items:center;gap:8px;background:#fff;
+      white-space:nowrap;
     }
     .btn:hover{background:#f6f6f6}
     .btn:active{transform:translateY(1px)}
