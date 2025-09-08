@@ -16,9 +16,9 @@
   <!-- PapaParse -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js" crossorigin="anonymous"></script>
 
-  <!-- Fonts -->
+  <!-- Fonts: Inter (site), Lato (buttons) -->
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet">
 
   <style>
     :root{
@@ -35,21 +35,24 @@
     }
     html,body,#app{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:Inter,sans-serif;}
     #map{position:absolute;inset:0;z-index:1;}
-    .hud{position:absolute;inset:0;pointer-events:none;z-index:1000;}   /* back on top */
-    .panel{z-index:1001;}                                              /* ensure above hud */
+    .hud{position:absolute;inset:0;pointer-events:none;z-index:1000;}
+    .panel{z-index:1001;}
 
-    /* Minimal control panel — aligned & flush */
+    /* Control panel — raised further from bottom (16px → 32px) */
     .panel{
-      position:absolute;right:16px;bottom:16px;
+      position:absolute;right:16px;bottom:32px;
       display:flex;flex-direction:column;gap:10px;min-width:260px;
       background:var(--panel-bg);border:1px solid var(--border);border-radius:14px;
       padding:12px;box-shadow:var(--panel-elev);pointer-events:auto;
       box-sizing:border-box;
     }
     .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-start;width:100%}
+
+    /* Buttons use Lato */
     .btn{
       appearance:none;border:1px solid var(--border);border-radius:12px;
-      padding:10px 14px;font-weight:600;cursor:pointer;
+      padding:10px 14px;font-family:'Lato', system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif;
+      font-weight:600;cursor:pointer;
       transition:background .15s ease, transform .08s ease, border-color .15s ease;
       display:inline-flex;align-items:center;gap:8px;background:#fff;
     }
@@ -59,7 +62,7 @@
     .primary:hover{background:#162114}
     .ghost{background:transparent}
 
-    /* Subtle status in top-right (above map & panel) */
+    /* Subtle status in top-right */
     .status-corner{
       position:absolute;top:10px;right:12px;pointer-events:none;
       font-size:12px;font-weight:600;color:var(--fg);opacity:.35;letter-spacing:.2px;
@@ -72,10 +75,9 @@
       text-shadow:none;white-space:nowrap;pointer-events:none;
     }
 
-    /* Mask pane above tiles, below markers/HUD (keep label above mask) */
+    /* Mask pane above tiles, below markers/HUD */
     .leaflet-pane.mask-pane { z-index:500; pointer-events:none; }
 
-    /* Nice rendering */
     .leaflet-tile{image-rendering:auto}
   </style>
 </head>
@@ -296,10 +298,10 @@ function animateSelection(lon, lat, pop){
     const b = L.polygon(squareLatLngs).getBounds();
     map.flyToBounds(b, { padding: [40, 40], duration: 1.2 });
 
-    // Population label at bottom-left (slightly inset)
+    // Population label at bottom-left (slightly inset) — now with text "Population: "
     const bl = squareLatLngs.reduce((a,b)=> (b.lat + b.lng < a.lat + a.lng ? b : a));
     const inset = turf.destination([bl.lng, bl.lat], 0.12, 45, {units:'kilometers'}).geometry.coordinates; // ~120m inward
-    const labelHtml = `<div class="pop-label" style="color:${borderColor}">${Math.round(pop).toLocaleString('en')}</div>`;
+    const labelHtml = `<div class="pop-label" style="color:${borderColor}">Population: ${Math.round(pop).toLocaleString('en')}</div>`;
     popLabelMarker = L.marker([inset[1], inset[0]], {
       icon: L.divIcon({ html: labelHtml, className: '', iconSize: [1,1], iconAnchor: [0,0] })
     }).addTo(map);
